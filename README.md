@@ -29,23 +29,32 @@ Then open http://localhost:3000.
 | `PORT`         | `3000`           | Port to listen on |
 | `DATA_FILE`    | `data/jobs.csv`  | Path to the CSV file. Point this at a persistent disk or volume when hosting. |
 | `APP_PASSWORD` | *(unset)*        | If set, the whole site asks for this password (browser login prompt; any username works). **Set this when hosting publicly.** |
+| `GITHUB_TOKEN` | *(unset)*        | If set, the CSV is read from and saved to a GitHub repo instead of `DATA_FILE`. Needed on Vercel. |
+| `GITHUB_REPO`  | *(unset)*        | Repo holding the CSV, e.g. `you/job-tracker-data`. Required with `GITHUB_TOKEN`. |
+| `GITHUB_FILE`  | `jobs.csv`       | Path of the CSV inside that repo. |
+| `GITHUB_BRANCH`| repo default     | Branch to read and commit to. |
 
 ```bash
 APP_PASSWORD='something-long' PORT=8080 node server.js
 ```
 
 ## Hosting
-Use any host that runs Node **and has a persistent disk**, because the CSV is written to disk. Serverless and static hosts (Vercel, Netlify, GitHub Pages) won't work.
-- **VPS** (DigitalOcean, Hetzner, Lightsail…): copy the folder, run `node server.js` under `pm2` or systemd, and put it behind HTTPS (e.g. Caddy).
-- **Railway / Render / Fly.io:** attach a volume (e.g. mounted at `/data`), set `DATA_FILE=/data/jobs.csv` and `APP_PASSWORD`, and use `npm start` as the start command. Copy your existing `data/jobs.csv` onto the volume once, or start empty.
+**Vercel (or any serverless host):** the filesystem is read-only, so store the CSV in a separate **private** GitHub repo. Every save becomes a commit there.
+1. Create a private repo (e.g. `job-tracker-data`) and upload your `data/jobs.csv` to it as `jobs.csv`.
+2. Create a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with access to **only that repo** and the permission **Contents: Read and write**.
+3. In Vercel → Project → Settings → Environment Variables, set `GITHUB_TOKEN`, `GITHUB_REPO` (e.g. `you/job-tracker-data`) and `APP_PASSWORD`, then redeploy.
+
+Never put the CSV in a public repo: it contains contacts' names, emails and phone numbers.
+
+**Host with a persistent disk** (VPS, Railway/Render/Fly.io with a volume): leave `GITHUB_TOKEN` unset and set `DATA_FILE` to a path on the disk or volume.
 
 Always use HTTPS in production. The password is sent with every request.
 
 ## Data file
 - Columns: `id,title,company,status,dateApplied,dateFollowedUp,nextFollowUp,location,salary,url,assessments,contactName,contactEmail,contactPhone,contactLinkedIn,notes`
 - Dates are `YYYY-MM-DD`. Multiple assessments are separated with `; `.
-- You can edit the file in Excel or Numbers too. Keep the header row, and stop the server while you edit.
-- Writes are atomic (temp file + rename), so a crash mid-save won't corrupt it. Still, back it up now and then with **Export CSV**.
+- You can edit the file in Excel or Numbers too. Keep the header row, and stop the server while you edit. With GitHub storage, edit it in the data repo instead (on github.com or by cloning it).
+- Local writes are atomic (temp file + rename), so a crash mid-save won't corrupt it. GitHub saves are rejected and retried if the file changed in between, and the commit history keeps every earlier version.
 
 ## Importing from the old tracker
 `data/jobs.csv` was created from `job-tracker-2026-09-24.csv` with:

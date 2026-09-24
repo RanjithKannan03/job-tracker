@@ -3,10 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const csv = require('./lib/csv');
+const { readJobs, mutate, describe: dataLocation } = require('./lib/storage');
 const { COLUMNS, REQUIRED, STATUSES } = require('./lib/schema');
 
 const PORT = Number(process.env.PORT) || 3000;
-const DATA_FILE = path.resolve(process.env.DATA_FILE || path.join(__dirname, 'data', 'jobs.csv'));
 const PASSWORD = process.env.APP_PASSWORD || '';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -17,29 +17,6 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
 };
-
-// ---- storage ----
-
-function readJobs() {
-  if (!fs.existsSync(DATA_FILE)) return [];
-  return csv.toObjects(fs.readFileSync(DATA_FILE, 'utf8'));
-}
-
-// Serialize writes so concurrent requests can't interleave read-modify-write.
-let queue = Promise.resolve();
-function mutate(fn) {
-  const run = queue.then(() => {
-    const jobs = readJobs();
-    const result = fn(jobs);
-    fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-    const tmp = DATA_FILE + '.tmp';
-    fs.writeFileSync(tmp, csv.stringify(jobs, COLUMNS));
-    fs.renameSync(tmp, DATA_FILE);
-    return result;
-  });
-  queue = run.catch(() => {});
-  return run;
-}
 
 function clean(input) {
   const job = {};
@@ -115,13 +92,13 @@ async function handle(req, res) {
   }
 
   if (pathname === '/api/jobs' && req.method === 'GET') {
-    return send(res, 200, readJobs());
+    return send(res, 200, await readJobs());
   }
 
   if (pathname === '/api/jobs' && req.method === 'POST') {
     const { job, error } = clean(await readBody(req));
     if (error) return send(res, 400, { error });
-    const created = await mutate(jobs => {
+    const created = await mutate(`Add job: ${job.title} at ${job.company}`, jobs => {
       const j = { id: crypto.randomUUID(), ...job };
       jobs.push(j);
       return j;
@@ -132,7 +109,7 @@ async function handle(req, res) {
   if (idMatch && req.method === 'PUT') {
     const { job, error } = clean(await readBody(req));
     if (error) return send(res, 400, { error });
-    const updated = await mutate(jobs => {
+    const updated = await mutate(`Update job: ${job.title} at ${job.company}`, jobs => {
       const i = jobs.findIndex(j => j.id === idMatch[1]);
       if (i === -1) return null;
       jobs[i] = { id: idMatch[1], ...job };
@@ -142,7 +119,7 @@ async function handle(req, res) {
   }
 
   if (idMatch && req.method === 'DELETE') {
-    const removed = await mutate(jobs => {
+    const removed = await mutate(`Delete job ${idMatch[1]}`, jobs => {
       const i = jobs.findIndex(j => j.id === idMatch[1]);
       if (i === -1) return false;
       jobs.splice(i, 1);
@@ -153,7 +130,7 @@ async function handle(req, res) {
 
   if (pathname === '/api/export' && req.method === 'GET') {
     const date = new Date().toISOString().slice(0, 10);
-    return send(res, 200, csv.stringify(readJobs(), COLUMNS), {
+    return send(res, 200, csv.stringify(await readJobs(), COLUMNS), {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="job-tracker-${date}.csv"`,
     });
@@ -171,5 +148,5 @@ http.createServer((req, res) => {
   });
 }).listen(PORT, () => {
   console.log(`Job tracker running at http://localhost:${PORT}`);
-  console.log(`Data file: ${DATA_FILE}${PASSWORD ? ' (password protected)' : ''}`);
+  console.log(`Data: ${dataLocation()}${PASSWORD ? ' (password protected)' : ''}`);
 });
