@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f46e5'/><path d='M10 12h12v11H10z M13 12V9h6v3' fill='none' stroke='white' stroke-width='2'/></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <h1>Job Tracker</h1>
+      <div class="topbar-actions">
+        <button class="btn" id="exportBtn" type="button">Export CSV</button>
+        <button class="btn btn-primary" id="addBtn" type="button">+ Add job</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="stats" id="stats" aria-label="Applications by status"></section>
+
+    <section class="toolbar">
+      <input type="search" id="search" placeholder="Search job title or company…" aria-label="Search job title or company">
+      <select id="statusFilter" aria-label="Filter by status">
+        <option value="">All statuses</option>
+      </select>
+      <select id="sortSelect" aria-label="Sort by"></select>
+      <button class="btn btn-ghost" id="clearBtn" type="button">Clear</button>
+    </section>
+
+    <p class="result-count" id="resultCount"></p>
+
+    <div class="table-wrap">
+      <table class="jobs">
+        <thead>
+          <tr id="headRow"></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden>No jobs match your search.</div>
+    </div>
+  </main>
+
+  <dialog id="jobDialog">
+    <form id="jobForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="dialogTitle">Add job</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">&times;</button>
+      </div>
+
+      <div class="dialog-body">
+        <fieldset>
+          <legend>Job</legend>
+          <div class="grid">
+            <label>Job title <span class="req">*</span>
+              <input name="title" required autocomplete="off">
+            </label>
+            <label>Company <span class="req">*</span>
+              <input name="company" required autocomplete="off">
+            </label>
+            <label>Status
+              <select name="status"></select>
+            </label>
+            <label>Location
+              <input name="location" placeholder="e.g. London / Remote">
+            </label>
+            <label>Salary
+              <input name="salary" placeholder="e.g. £30,000 – £35,000">
+            </label>
+            <label class="span-2">Job posting URL <span class="req">*</span>
+              <input name="url" type="url" required placeholder="https://…">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Dates</legend>
+          <div class="grid grid-3">
+            <label>Date applied <span class="req">*</span>
+              <input name="dateApplied" type="date" required>
+            </label>
+            <label>Date followed up
+              <input name="dateFollowedUp" type="date">
+            </label>
+            <label>Next follow-up
+              <input name="nextFollowUp" type="date">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Completed assessments</legend>
+          <div class="checks" id="assessmentChecks"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Contact</legend>
+          <div class="grid">
+            <label>Name / role
+              <input name="contactName" placeholder="e.g. Jane Doe, Recruiter">
+            </label>
+            <label>Email
+              <input name="contactEmail" type="email">
+            </label>
+            <label>Phone
+              <input name="contactPhone" type="tel">
+            </label>
+            <label>LinkedIn
+              <input name="contactLinkedIn" placeholder="https://linkedin.com/in/…">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Notes</legend>
+          <textarea name="notes" rows="4" aria-label="Notes"></textarea>
+        </fieldset>
+
+        <p class="form-error" id="formError" role="alert" hidden></p>
+      </div>
+
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-danger" id="deleteBtn" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
